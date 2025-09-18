@@ -5,10 +5,18 @@ from ..models import User, Product, Service, Order, OrderItem, Review, Feedback,
 
 class SecuredModelView(ModelView):
     def is_accessible(self):
-        from flask import current_app, request
-        # простая заглушка: доступ по ADMIN telegram_id (под капотом — заголовок из бота)
+        from flask import current_app, request, session
+
         hdr = request.headers.get("X-Telegram-Admin")
-        return hdr == str(current_app.config["TELEGRAM_ADMIN_ID"])
+        if hdr and hdr == str(current_app.config["TELEGRAM_ADMIN_ID"]):
+            return True
+
+        uid = session.get("uid")
+        if uid:
+            user = User.query.get(uid)
+            if user and getattr(user, "role", "client") == "admin":
+                return True
+        return False
 
 def init_admin(app):
     admin = Admin(app, name="Winst-Grad Admin", template_mode="bootstrap4", url="/admin")

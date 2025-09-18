@@ -1,8 +1,9 @@
 {% extends "_base.html" %}
-{% block body %}
-  <div style="max-width:680px;margin:10vh auto;text-align:center">
-    <h1>Приложение работает только через Telegram</h1>
-    <p>Откройте наш бот и нажмите кнопку «Открыть приложение».</p>
-    <p><a href="https://t.me/WinstGradBot" class="btn">Перейти в @WinstGradBot</a></p>
+{% set page_id = "landing" %}
+{% block content %}
+  <div class="landing-warning text-center mx-auto">
+    <h1 class="fw-semibold mb-3">Приложение работает только через Telegram</h1>
+    <p class="lead">Откройте наш бот и нажмите кнопку «Открыть приложение».</p>
+    <p><a href="https://t.me/WinstGradBot" class="btn btn-primary btn-lg">Перейти в @WinstGradBot</a></p>
   </div>
 {% endblock %}

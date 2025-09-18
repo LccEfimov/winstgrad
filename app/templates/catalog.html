@@ -1,16 +1,209 @@
 {% extends "_base.html" %}
-{% block body %}
-<h2>Каталог</h2>
-<h3>Товары</h3>
-<ul>
-  {% for p in products %}
-    <li>{{ p.name }} — {{ "%.2f"|format(p.price) }} ₽</li>
-  {% endfor %}
-</ul>
-<h3>Услуги</h3>
-<ul>
-  {% for s in services %}
-    <li>{{ s.name }} — {{ "%.2f"|format(s.base_price) }} ₽</li>
-  {% endfor %}
-</ul>
+{% set page_id = "catalog" %}
+{% block content %}
+  {% include "_nav.html" %}
+
+  <div class="d-flex flex-column flex-lg-row align-items-lg-center mb-4 gap-3">
+    <div class="flex-grow-1">
+      <h1 class="h3 mb-2">Каталог товаров и услуг</h1>
+      <p class="text-secondary mb-0">Добавляйте позиции в калькулятор, чтобы рассчитать стоимость и сразу отправить заявку нашему менеджеру.</p>
+    </div>
+    <div class="text-lg-end">
+      <span class="badge bg-success-subtle text-success">Личный кабинет для {{ user.first_name or user.username or 'клиента' }}</span>
+    </div>
+  </div>
+
+  <div class="row g-4">
+    <div class="col-lg-7">
+      <section class="catalog-section" aria-label="Товары">
+        <h2 class="h5 mb-3">Товары</h2>
+        {% if products %}
+          <div class="vstack gap-3">
+          {% for p in products %}
+            {% set stats = review_stats['product'].get(p.id) if review_stats else None %}
+            <article class="card shadow-sm catalog-card" data-item-type="product" data-item-id="{{ p.id }}" data-item-name="{{ p.name }}" data-item-unit="{{ p.unit or 'шт' }}" data-item-price="{{ '%.2f'|format(p.price or 0) }}">
+              <div class="card-body">
+                <div class="d-flex flex-column flex-md-row gap-3 justify-content-between">
+                  <div class="flex-grow-1">
+                    <h3 class="h5 mb-1">{{ p.name }}</h3>
+                    <div class="small text-secondary mb-2">
+                      Ед. изм.: {{ p.unit or 'шт' }}{% if p.sku %} · Артикул: {{ p.sku }}{% endif %}
+                    </div>
+                    {% if p.description %}
+                      <p class="mb-2 text-muted small">{{ p.description }}</p>
+                    {% endif %}
+                    <div class="d-flex align-items-center gap-2 text-warning-emphasis small">
+                      <span class="rating-stars" data-average="{{ '%.1f'|format(stats.average) if stats else '0.0' }}"></span>
+                      {% if stats %}
+                        <span>{{ '%.1f'|format(stats.average) }} / 5 · {{ stats.count }} отзыв{{ 'ов' if stats.count|int not in [1,21] else '' }}</span>
+                      {% else %}
+                        <span class="text-muted">Пока нет отзывов</span>
+                      {% endif %}
+                    </div>
+                  </div>
+                  <div class="text-md-end">
+                    <div class="price-display">{{ '%.2f'|format(p.price or 0) }} ₽</div>
+                    <div class="input-group input-group-sm mt-2 catalog-qty">
+                      <span class="input-group-text">Кол-во</span>
+                      <input type="number" class="form-control" value="1" min="0.1" step="0.1" aria-label="Количество {{ p.unit or 'шт' }}" data-role="qty-input">
+                      <span class="input-group-text">{{ p.unit or 'шт' }}</span>
+                    </div>
+                    <button class="btn btn-primary btn-sm mt-2 js-add-to-cart" type="button">Добавить</button>
+                  </div>
+                </div>
+
+                <div class="mt-3">
+                  <button class="btn btn-link btn-sm p-0" type="button" data-bs-toggle="collapse" data-bs-target="#reviews-product-{{ p.id }}" aria-expanded="false">Отзывы и вопрос менеджеру</button>
+                  <div class="collapse mt-2" id="reviews-product-{{ p.id }}">
+                    <div class="reviews-list vstack gap-2 mb-3">
+                      {% if stats and stats['items'] %}
+                        {% for rv in stats['items'][:3] %}
+                          <div class="border rounded p-2 bg-body-tertiary">
+                            <div class="small text-secondary">Оценка: {{ rv.rating }} · {{ rv.created_at.strftime('%d.%m.%Y') if rv.created_at else '' }}</div>
+                            <div>{{ rv.text }}</div>
+                          </div>
+                        {% endfor %}
+                        {% if stats['items']|length > 3 %}
+                          <div class="small text-muted">Показаны последние отзывы. Остальные доступны в админ-панели.</div>
+                        {% endif %}
+                      {% else %}
+                        <div class="text-muted small">Пока нет отзывов. Станьте первым!</div>
+                      {% endif %}
+                    </div>
+                    <form class="review-form" data-target-type="product" data-target-id="{{ p.id }}">
+                      <div class="row g-2 align-items-end">
+                        <div class="col-sm-4">
+                          <label class="form-label small">Оценка</label>
+                          <select class="form-select form-select-sm" name="rating" required>
+                            <option value="" selected hidden>Выберите</option>
+                            {% for score in range(5,0,-1) %}
+                              <option value="{{ score }}">{{ score }}</option>
+                            {% endfor %}
+                          </select>
+                        </div>
+                        <div class="col-sm-8">
+                          <label class="form-label small">Комментарий</label>
+                          <textarea class="form-control form-control-sm" name="text" rows="2" placeholder="Опишите задачу или впечатления" required></textarea>
+                        </div>
+                      </div>
+                      <button type="submit" class="btn btn-outline-primary btn-sm mt-2">Отправить отзыв</button>
+                    </form>
+                  </div>
+                </div>
+              </div>
+            </article>
+          {% endfor %}
+          </div>
+        {% else %}
+          <div class="alert alert-warning">Каталог товаров пока пуст. Добавьте позиции через админ-панель.</div>
+        {% endif %}
+      </section>
+
+      <section class="catalog-section mt-5" aria-label="Услуги">
+        <h2 class="h5 mb-3">Услуги</h2>
+        {% if services %}
+          <div class="vstack gap-3">
+          {% for s in services %}
+            {% set stats = review_stats['service'].get(s.id) if review_stats else None %}
+            <article class="card shadow-sm catalog-card" data-item-type="service" data-item-id="{{ s.id }}" data-item-name="{{ s.name }}" data-item-unit="услуга" data-item-price="{{ '%.2f'|format(s.base_price or 0) }}">
+              <div class="card-body">
+                <div class="d-flex flex-column flex-md-row gap-3 justify-content-between">
+                  <div class="flex-grow-1">
+                    <h3 class="h5 mb-1">{{ s.name }}</h3>
+                    {% if s.description %}
+                      <p class="mb-2 text-muted small">{{ s.description }}</p>
+                    {% endif %}
+                    <div class="d-flex align-items-center gap-2 text-warning-emphasis small">
+                      <span class="rating-stars" data-average="{{ '%.1f'|format(stats.average) if stats else '0.0' }}"></span>
+                      {% if stats %}
+                        <span>{{ '%.1f'|format(stats.average) }} / 5 · {{ stats.count }} отзыв{{ 'ов' if stats.count|int not in [1,21] else '' }}</span>
+                      {% else %}
+                        <span class="text-muted">Нет отзывов</span>
+                      {% endif %}
+                    </div>
+                  </div>
+                  <div class="text-md-end">
+                    <div class="price-display">{{ '%.2f'|format(s.base_price or 0) }} ₽</div>
+                    <div class="input-group input-group-sm mt-2 catalog-qty">
+                      <span class="input-group-text">Кол-во</span>
+                      <input type="number" class="form-control" value="1" min="1" step="1" aria-label="Количество услуг" data-role="qty-input">
+                      <span class="input-group-text">шт</span>
+                    </div>
+                    <button class="btn btn-primary btn-sm mt-2 js-add-to-cart" type="button">Добавить</button>
+                  </div>
+                </div>
+
+                <div class="mt-3">
+                  <button class="btn btn-link btn-sm p-0" type="button" data-bs-toggle="collapse" data-bs-target="#reviews-service-{{ s.id }}" aria-expanded="false">Отзывы и консультация</button>
+                  <div class="collapse mt-2" id="reviews-service-{{ s.id }}">
+                    <div class="reviews-list vstack gap-2 mb-3">
+                      {% if stats and stats['items'] %}
+                        {% for rv in stats['items'][:3] %}
+                          <div class="border rounded p-2 bg-body-tertiary">
+                            <div class="small text-secondary">Оценка: {{ rv.rating }} · {{ rv.created_at.strftime('%d.%m.%Y') if rv.created_at else '' }}</div>
+                            <div>{{ rv.text }}</div>
+                          </div>
+                        {% endfor %}
+                      {% else %}
+                        <div class="text-muted small">Пока нет отзывов. Мы будем рады узнать ваше мнение!</div>
+                      {% endif %}
+                    </div>
+                    <form class="review-form" data-target-type="service" data-target-id="{{ s.id }}">
+                      <div class="row g-2 align-items-end">
+                        <div class="col-sm-4">
+                          <label class="form-label small">Оценка</label>
+                          <select class="form-select form-select-sm" name="rating" required>
+                            <option value="" selected hidden>Выберите</option>
+                            {% for score in range(5,0,-1) %}
+                              <option value="{{ score }}">{{ score }}</option>
+                            {% endfor %}
+                          </select>
+                        </div>
+                        <div class="col-sm-8">
+                          <label class="form-label small">Комментарий</label>
+                          <textarea class="form-control form-control-sm" name="text" rows="2" placeholder="Опишите задачу" required></textarea>
+                        </div>
+                      </div>
+                      <button type="submit" class="btn btn-outline-primary btn-sm mt-2">Отправить отзыв</button>
+                    </form>
+                  </div>
+                </div>
+              </div>
+            </article>
+          {% endfor %}
+          </div>
+        {% else %}
+          <div class="alert alert-info">Пока нет активных услуг. Добавьте их в админ-панели.</div>
+        {% endif %}
+      </section>
+    </div>
+
+    <div class="col-lg-5">
+      <aside class="card shadow-sm sticky-lg-top" style="top: 1rem;">
+        <div class="card-body">
+          <h2 class="h5 mb-3">Онлайн-калькулятор заказа</h2>
+          <p class="text-muted small">Добавьте товары и услуги, укажите количество. Итоговая стоимость обновится автоматически. После отправки менеджер свяжется с вами для уточнения деталей.</p>
+          <div id="orderItems" class="vstack gap-2 mb-3" aria-live="polite">
+            <div class="text-muted text-center py-3" data-role="empty-cart">Корзина пока пуста. Добавьте позиции из каталога.</div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Комментарий или адрес монтажа</label>
+            <textarea class="form-control" rows="3" id="orderComment" placeholder="Например: требуется монтаж кровли, адрес объекта…"></textarea>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Доставка, ₽ (опционально)</label>
+            <input type="number" class="form-control" id="orderDelivery" min="0" step="0.01" value="0">
+          </div>
+          <div class="d-flex justify-content-between align-items-end mb-3">
+            <div>
+              <div class="text-secondary small">Итого по калькулятору</div>
+              <div class="display-6 fs-3 mb-0"><span id="orderTotal">0.00</span> ₽</div>
+            </div>
+            <button class="btn btn-success" id="submitOrder" type="button" disabled>Отправить заказ</button>
+          </div>
+          <div class="small text-muted">После оформления заказ появится в разделе «Мои заказы» и будет обработан менеджером ООО ПТК «Винст-Град».</div>
+        </div>
+      </aside>
+    </div>
+  </div>
 {% endblock %}

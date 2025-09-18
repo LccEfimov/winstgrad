@@ -1,10 +1,11 @@
 {% extends "_base.html" %}
-{% block body %}
+{% set page_id = "index" %}
+{% block content %}
 
-<div id="tgGate" class="alert alert-secondary">
+<div id="tgGate" class="alert alert-secondary shadow-sm">
   <div class="fw-semibold">Проверяем запуск из Telegram…</div>
   <div id="tgDiag" class="small text-secondary mt-1">инициализация…</div>
-  <div class="mt-2">
+  <div class="mt-3">
     Похоже, вы открыли страницу напрямую. Приложение работает только через Telegram.<br>
     <a href="https://t.me/WinstGradBot">Открыть @WinstGradBot</a>
   </div>
@@ -18,25 +19,38 @@
 
 <div id="appContent" class="d-none">
   <h2 class="mb-3">Личный кабинет</h2>
-  <p>
-    <a href="/app/catalog" class="btn btn-primary btn-sm">Каталог</a>
-    <a href="/app/orders" class="btn btn-outline-primary btn-sm">Мои заказы</a>
-    <a href="/app/profile" class="btn btn-outline-secondary btn-sm">Профиль</a>
-    <a href="/app/feedback" class="btn btn-outline-secondary btn-sm">Обратная связь</a>
-  </p>
+  <p class="text-secondary">Добро пожаловать! Используйте меню, чтобы оформить заказ, отслеживать статусы и связаться с нами.</p>
+  <div class="d-flex flex-wrap gap-2">
+    <a href="/app/catalog" class="btn btn-primary">Каталог</a>
+    <a href="/app/orders" class="btn btn-outline-primary">Мои заказы</a>
+    <a href="/app/profile" class="btn btn-outline-secondary">Профиль</a>
+    <a href="/app/feedback" class="btn btn-outline-secondary">Обратная связь</a>
+  </div>
 </div>
 
 <script>
-// простой переключатель видимости
 window.__WG_SHOW_APP__ = function(){
-  document.getElementById('tgGate').classList.add('d-none');
-  document.getElementById('appContent').classList.remove('d-none');
+  document.getElementById('tgGate')?.classList.add('d-none');
+  document.getElementById('appContent')?.classList.remove('d-none');
 };
-// место, куда писать диагностику
 window.__WG_DIAG__ = function(txt){
   var el = document.getElementById('tgDiag');
   if (el) el.textContent = txt;
 };
+const params = new URLSearchParams(window.location.search);
+if (params.get('goto') === 'admin'){
+  const diag = document.getElementById('tgDiag');
+  if (diag){
+    diag.textContent = 'Ожидаем входа администратора…';
+  }
+  window.__WG_AFTER_LOGIN__ = function(){
+    window.open('/admin', '_blank');
+    const note = document.getElementById('tgDiag');
+    if (note){
+      note.textContent = 'Админ-панель открыта в новой вкладке.';
+    }
+  };
+}
 </script>
 
 {% endblock %}

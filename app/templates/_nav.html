@@ -1,0 +1,11 @@
+<nav class="mb-4">
+  <ul class="nav nav-pills flex-wrap gap-2">
+    <li class="nav-item"><a class="nav-link {% if nav_active == 'catalog' %}active{% endif %}" href="{{ url_for('webapp.catalog') }}">Каталог</a></li>
+    <li class="nav-item"><a class="nav-link {% if nav_active == 'orders' %}active{% endif %}" href="{{ url_for('webapp.orders') }}">Мои заказы</a></li>
+    <li class="nav-item"><a class="nav-link {% if nav_active == 'profile' %}active{% endif %}" href="{{ url_for('webapp.profile_get') }}">Профиль</a></li>
+    <li class="nav-item"><a class="nav-link {% if nav_active == 'feedback' %}active{% endif %}" href="{{ url_for('webapp.feedback_get') }}">Обратная связь</a></li>
+    {% if is_admin %}
+    <li class="nav-item"><a class="nav-link" href="{{ url_for('admin.index') }}" data-admin-link="1">Админ-панель</a></li>
+    {% endif %}
+  </ul>
+</nav>
