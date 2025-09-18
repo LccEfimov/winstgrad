@@ -1,0 +1,16 @@
+{% extends "_base.html" %}
+{% block body %}
+<h2>Каталог</h2>
+<h3>Товары</h3>
+<ul>
+  {% for p in products %}
+    <li>{{ p.name }} — {{ "%.2f"|format(p.price) }} ₽</li>
+  {% endfor %}
+</ul>
+<h3>Услуги</h3>
+<ul>
+  {% for s in services %}
+    <li>{{ s.name }} — {{ "%.2f"|format(s.base_price) }} ₽</li>
+  {% endfor %}
+</ul>
+{% endblock %}

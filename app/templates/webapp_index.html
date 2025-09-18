@@ -1,0 +1,42 @@
+{% extends "_base.html" %}
+{% block body %}
+
+<div id="tgGate" class="alert alert-secondary">
+  <div class="fw-semibold">Проверяем запуск из Telegram…</div>
+  <div id="tgDiag" class="small text-secondary mt-1">инициализация…</div>
+  <div class="mt-2">
+    Похоже, вы открыли страницу напрямую. Приложение работает только через Telegram.<br>
+    <a href="https://t.me/WinstGradBot">Открыть @WinstGradBot</a>
+  </div>
+  <div class="mt-2 small">
+    <a href="/app/catalog">Каталог</a> ·
+    <a href="/app/orders">Мои заказы</a> ·
+    <a href="/app/profile">Профиль</a> ·
+    <a href="/app/feedback">Обратная связь</a>
+  </div>
+</div>
+
+<div id="appContent" class="d-none">
+  <h2 class="mb-3">Личный кабинет</h2>
+  <p>
+    <a href="/app/catalog" class="btn btn-primary btn-sm">Каталог</a>
+    <a href="/app/orders" class="btn btn-outline-primary btn-sm">Мои заказы</a>
+    <a href="/app/profile" class="btn btn-outline-secondary btn-sm">Профиль</a>
+    <a href="/app/feedback" class="btn btn-outline-secondary btn-sm">Обратная связь</a>
+  </p>
+</div>
+
+<script>
+// простой переключатель видимости
+window.__WG_SHOW_APP__ = function(){
+  document.getElementById('tgGate').classList.add('d-none');
+  document.getElementById('appContent').classList.remove('d-none');
+};
+// место, куда писать диагностику
+window.__WG_DIAG__ = function(txt){
+  var el = document.getElementById('tgDiag');
+  if (el) el.textContent = txt;
+};
+</script>
+
+{% endblock %}
