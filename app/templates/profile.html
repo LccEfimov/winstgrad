@@ -1,0 +1,65 @@
+{% extends "_base.html" %}
+{% set page_id = "profile" %}
+{% block content %}
+  {% include "_nav.html" %}
+
+  <div class="row g-4">
+    <div class="col-lg-7">
+      <h1 class="h4 mb-3">Профиль клиента</h1>
+      <p class="text-secondary">Данные используются для выставления счетов, доставки и связи с вами. Изменения сохраняются моментально.</p>
+
+      <form id="profileForm" class="vstack gap-3" data-user-id="{{ user.id }}">
+        <div>
+          <label class="form-label" for="profilePhone">Телефон</label>
+          <input type="tel" class="form-control" id="profilePhone" name="phone" placeholder="+7 (999) 000-00-00" value="{{ user.phone or '' }}">
+          <div class="form-text">Укажите номер, по которому менеджер сможет с вами связаться.</div>
+        </div>
+        <div>
+          <label class="form-label" for="profileEmail">E-mail</label>
+          <input type="email" class="form-control" id="profileEmail" name="email" placeholder="name@example.com" value="{{ user.email or '' }}">
+          <div class="form-text">На почту отправляем коммерческие предложения и документацию.</div>
+        </div>
+        <div>
+          <label class="form-label" for="profileAddress">Адрес доставки / монтажа</label>
+          <textarea class="form-control" id="profileAddress" name="delivery_address" rows="3" placeholder="Город, улица, описание объекта">{{ user.delivery_address or '' }}</textarea>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+          <button type="submit" class="btn btn-primary">Сохранить изменения</button>
+          <button type="button" class="btn btn-outline-secondary" id="profileRefresh">Обновить из Telegram</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="col-lg-5">
+      <aside class="card shadow-sm">
+        <div class="card-body">
+          <h2 class="h6 text-uppercase text-secondary">Связь с Telegram</h2>
+          <dl class="row small mb-0">
+            <dt class="col-5">Telegram ID</dt>
+            <dd class="col-7">{{ user.telegram_id }}</dd>
+            {% if user.username %}
+            <dt class="col-5">Логин</dt>
+            <dd class="col-7">@{{ user.username }}</dd>
+            {% endif %}
+            <dt class="col-5">Имя</dt>
+            <dd class="col-7">{{ (user.first_name or '') ~ (' ' ~ user.last_name if user.last_name else '') }}</dd>
+            <dt class="col-5">Роль</dt>
+            <dd class="col-7">{{ user.role or 'client' }}</dd>
+            <dt class="col-5">Создан</dt>
+            <dd class="col-7">{{ user.created_at.strftime('%d.%m.%Y %H:%M') if user.created_at else '—' }}</dd>
+          </dl>
+          <div class="alert alert-light border mt-3 mb-0">
+            <div class="fw-semibold">Как обновить данные из Telegram?</div>
+            <p class="mb-1 small">Нажмите «Обновить из Telegram» — бот запросит разрешение на получение актуальных имени и никнейма. Контактные данные из формы при этом сохранятся.</p>
+          </div>
+        </div>
+      </aside>
+      {% if is_admin %}
+        <div class="alert alert-warning mt-3">
+          <div class="fw-semibold">Роль администратора</div>
+          <p class="mb-0 small">У вас есть доступ к административной панели. Используйте её для управления каталогом, услугами, заказами и отзывами.</p>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+{% endblock %}

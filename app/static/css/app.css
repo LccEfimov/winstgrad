@@ -1,1 +1,71 @@
-/* winograd app.css placeholder */
+:root {
+  --wg-accent: #1b6ec2;
+}
+
+body {
+  font-family: 'Roboto', sans-serif;
+  background: #f5f7fb;
+  min-height: 100vh;
+  color: #1f1f1f;
+}
+
+.tg-app {
+  max-width: 1080px;
+}
+
+.catalog-card {
+  border: 1px solid rgba(27, 110, 194, 0.08);
+}
+
+.catalog-card .price-display {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--wg-accent);
+}
+
+.catalog-card .catalog-qty input {
+  text-align: center;
+}
+
+.rating-stars {
+  font-size: 1rem;
+  letter-spacing: 0.1em;
+  color: #f5a623;
+  min-width: 5ch;
+}
+
+.cart-item .input-group-text {
+  background: rgba(27, 110, 194, 0.08);
+}
+
+.alert-info {
+  background: #e7f1ff;
+  border-color: #c9e0ff;
+  color: #15457a;
+}
+
+.alert-warning {
+  background: #fff4df;
+  border-color: #ffd491;
+}
+
+.landing-warning {
+  max-width: 720px;
+  padding: 3rem;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 1.25rem 2.5rem -1.5rem rgba(0,0,0,0.25);
+}
+
+.toast-container {
+  z-index: 1080;
+}
+
+@media (max-width: 767px) {
+  .catalog-card .price-display {
+    font-size: 1.1rem;
+  }
+  .landing-warning {
+    padding: 2rem 1.5rem;
+  }
+}

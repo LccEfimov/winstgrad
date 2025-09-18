@@ -1,0 +1,60 @@
+{% extends "_base.html" %}
+{% set page_id = "feedback" %}
+{% block content %}
+  {% include "_nav.html" %}
+
+  <div class="row g-4">
+    <div class="col-lg-7">
+      <h1 class="h4 mb-3">Обратная связь</h1>
+      <p class="text-secondary">Напишите нам, если нужна консультация, расчёт материалов, выезд специалиста или помощь с действующим заказом.</p>
+
+      <form id="feedbackForm" class="vstack gap-3">
+        <div>
+          <label class="form-label" for="feedbackName">Как к вам обращаться</label>
+          <input type="text" class="form-control" id="feedbackName" name="name" value="{{ user.first_name or user.username or '' }}" required>
+        </div>
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label" for="feedbackPhone">Телефон</label>
+            <input type="tel" class="form-control" id="feedbackPhone" name="phone" value="{{ user.phone or '' }}" placeholder="+7 (999) 000-00-00">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="feedbackEmail">E-mail</label>
+            <input type="email" class="form-control" id="feedbackEmail" name="email" value="{{ user.email or '' }}" placeholder="name@example.com">
+          </div>
+        </div>
+        <div>
+          <label class="form-label" for="feedbackSubject">Тема обращения</label>
+          <input type="text" class="form-control" id="feedbackSubject" name="subject" placeholder="Например: расчёт кровли, монтаж водостока">
+        </div>
+        <div>
+          <label class="form-label" for="feedbackMessage">Сообщение</label>
+          <textarea class="form-control" id="feedbackMessage" name="message" rows="4" required placeholder="Опишите задачу или вопрос"></textarea>
+        </div>
+        <button type="submit" class="btn btn-success btn-lg align-self-start">Отправить менеджеру</button>
+      </form>
+    </div>
+
+    <div class="col-lg-5">
+      <aside class="card shadow-sm">
+        <div class="card-body">
+          <h2 class="h6 text-uppercase text-secondary">ООО ПТК «Винст-Град»</h2>
+          <ul class="list-unstyled small mb-3">
+            <li class="mb-1"><span class="text-secondary">Телефон:</span> <a href="tel:+74951234567">+7 (495) 123-45-67</a></li>
+            <li class="mb-1"><span class="text-secondary">E-mail:</span> <a href="mailto:info@winstgrad.ru">info@winstgrad.ru</a></li>
+            <li class="mb-1"><span class="text-secondary">Сайт:</span> <a href="https://winstgrad.ru" target="_blank" rel="noopener">winstgrad.ru</a></li>
+            <li><span class="text-secondary">График:</span> пн-пт 09:00–18:00, сб 10:00–15:00</li>
+          </ul>
+          <div class="alert alert-light border small mb-0">
+            <div class="fw-semibold">Отзывы и рекомендации</div>
+            <p class="mb-1">Публикуйте свой опыт сотрудничества через отзывы в каталоге. Это помогает другим клиентам и ускоряет обработку заказов.</p>
+          </div>
+        </div>
+      </aside>
+      <div class="alert alert-info mt-3 small mb-0">
+        <div class="fw-semibold">Статус обращения</div>
+        <p class="mb-0">Все заявки фиксируются в CRM. Менеджер свяжется с вами в ближайшее рабочее время. Проверьте раздел «Мои заказы» для отслеживания статуса.</p>
+      </div>
+    </div>
+  </div>
+{% endblock %}

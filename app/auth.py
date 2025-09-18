@@ -1,7 +1,7 @@
 import time
 import jwt
 from typing import Optional, Tuple, Dict
-from flask import current_app, request, make_response, g
+from flask import current_app, request, make_response, g, session, render_template
 from functools import wraps
 
 
@@ -90,11 +90,17 @@ def jwt_required(view):
 
         if user is None:
             from flask import jsonify
+            session.pop("uid", None)
+            wants_html = "text/html" in (request.headers.get("Accept") or "")
+            if wants_html:
+                resp = make_response(render_template("landing_only_telegram.html"), 403)
+                return resp
             return jsonify({"ok": False, "error": "unauthorized"}), 401
 
         # УСТАНАВЛИВАЕМ ПОЛЬЗОВАТЕЛЯ ДО ВЫЗОВА view
         g.user = user
         request.user = user
+        session["uid"] = user.id
 
         resp = make_response(view(*args, **kwargs))
         if new_tokens:

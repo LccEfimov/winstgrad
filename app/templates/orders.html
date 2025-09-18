@@ -1,0 +1,85 @@
+{% extends "_base.html" %}
+{% set page_id = "orders" %}
+{% block content %}
+  {% include "_nav.html" %}
+
+  <div class="d-flex flex-column flex-lg-row align-items-lg-center mb-4 gap-2">
+    <div class="flex-grow-1">
+      <h1 class="h4 mb-1">Мои заказы</h1>
+      <p class="text-secondary mb-0">История обращений и заявок, оформленных через бот @WinstGradBot.</p>
+    </div>
+    <div class="text-lg-end small text-muted">Дата последнего обновления: {{ (orders[0].updated_at.strftime('%d.%m.%Y %H:%M') if orders) else '—' }}</div>
+  </div>
+
+  {% if not orders %}
+    <div class="alert alert-info">У вас пока нет заказов. Перейдите в каталог и сформируйте заявку через калькулятор.</div>
+  {% else %}
+    <div class="vstack gap-3">
+      {% for order in orders %}
+        {% set items = items_map.get(order.id, []) %}
+        <article class="card shadow-sm">
+          <div class="card-body">
+            <div class="d-flex flex-column flex-md-row justify-content-between gap-2 mb-3">
+              <div>
+                <div class="fw-semibold">Заказ № {{ order.id }}</div>
+                <div class="small text-secondary">Создан: {{ order.created_at.strftime('%d.%m.%Y %H:%M') if order.created_at else '—' }}</div>
+                {% if order.comment %}
+                  <div class="small mt-1"><span class="text-secondary">Комментарий:</span> {{ order.comment }}</div>
+                {% endif %}
+              </div>
+              <div class="text-md-end">
+                {% set status = order.status or 'new' %}
+                {% set status_map = {
+                  'new': ('Новый', 'secondary'),
+                  'processing': ('В работе', 'primary'),
+                  'approved': ('Подтверждён', 'success'),
+                  'done': ('Выполнен', 'success'),
+                  'cancelled': ('Отменён', 'danger')
+                } %}
+                {% set label, color = status_map.get(status, ('Статус уточняется', 'warning')) %}
+                <span class="badge bg-{{ color }}">{{ label }}</span>
+                <div class="small text-secondary mt-1">Оплата: {{ 'Оплачен' if order.payment_status == 'paid' else 'Не оплачен' }}</div>
+              </div>
+            </div>
+
+            <div class="table-responsive">
+              <table class="table table-sm align-middle mb-3">
+                <thead>
+                  <tr class="table-light">
+                    <th>Наименование</th>
+                    <th class="text-center">Кол-во</th>
+                    <th class="text-end">Цена, ₽</th>
+                    <th class="text-end">Сумма, ₽</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for item in items %}
+                    <tr>
+                      <td>
+                        <div>{{ item.name or 'Позиция удалена' }}</div>
+                        <div class="small text-secondary">Тип: {{ 'Товар' if item.type == 'product' else 'Услуга' }}{% if item.unit %} · {{ item.unit }}{% endif %}</div>
+                      </td>
+                      <td class="text-center">{{ '%.2f'|format(item.qty) }}</td>
+                      <td class="text-end">{{ '%.2f'|format(item.unit_price) }}</td>
+                      <td class="text-end">{{ '%.2f'|format(item.total) }}</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+
+            <div class="d-flex flex-column flex-md-row justify-content-between gap-2">
+              <div class="text-secondary small">Последнее обновление: {{ order.updated_at.strftime('%d.%m.%Y %H:%M') if order.updated_at else '—' }}</div>
+              <div class="text-md-end">
+                {% if order.delivery_price and order.delivery_price > 0 %}
+                  <div class="small text-secondary">Доставка: {{ '%.2f'|format(order.delivery_price) }} ₽</div>
+                {% endif %}
+                <div class="fw-semibold fs-5">Итого: {{ '%.2f'|format(order.total or 0) }} ₽</div>
+              </div>
+            </div>
+          </div>
+        </article>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endblock %}

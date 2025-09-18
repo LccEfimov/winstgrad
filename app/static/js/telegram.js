@@ -2,13 +2,28 @@
 (function(){
   const gate = document.getElementById('tgGate');
   const app  = document.getElementById('appContent');
-  const showApp = ()=>{ gate?.classList.add('d-none'); app?.classList.remove('d-none'); };
+  const showApp = ()=>{
+    gate?.classList.add('d-none');
+    app?.classList.remove('d-none');
+    window.__WG_SHOW_APP__?.();
+    const after = window.__WG_AFTER_LOGIN__;
+    if (typeof after === 'function'){
+      window.__WG_AFTER_LOGIN__ = null;
+      setTimeout(()=>{
+        try{ after(); }
+        catch(err){ console.warn('after login hook error', err); }
+      }, 50);
+    }
+  };
+  const diag = (txt)=> window.__WG_DIAG__?.(txt);
 
   async function cookiesFirst(){
     try{
+      diag('Проверяем сохранённую сессию…');
       const r = await fetch('/app/me', {credentials:'include'});
       if (r.ok) { showApp(); return true; }
-    }catch(_){} return false;
+    }catch(_){ diag('Не удалось использовать сохранённую сессию.'); }
+    return false;
   }
 
   function waitTelegram(max=7000){
@@ -24,16 +39,17 @@
 
   async function authViaTelegram(){
     const have = await waitTelegram();
-    if (!have) return false;
+    if (!have){ diag('Запустите страницу из Telegram.'); return false; }
 
     try{
       const tg = Telegram.WebApp;
-      tg.ready();             // сообщаем клиенту, что UI готов
-      tg.expand();            // можно занять максимум высоты
+      tg.ready();
+      tg.expand();
 
-      const initData = tg.initData || ""; // именно строка из доки
-      if (!initData) return false;
+      const initData = tg.initData || "";
+      if (!initData){ diag('Не получили данные от Telegram.'); return false; }
 
+      diag('Авторизуемся через Telegram…');
       const r = await fetch('/app/api/telegram/auth', {
         method:'POST',
         headers:{'Content-Type':'application/json'},
@@ -41,14 +57,21 @@
         body: JSON.stringify({ initData })
       });
       const j = await r.json();
-      if (j.success){ showApp(); return true; }
-    }catch(_){}
+      if (j.success){
+        diag('Готово! Загружаем приложение…');
+        showApp();
+        return true;
+      }
+      diag(j.error || 'Не удалось авторизоваться.');
+    }catch(err){
+      diag('Ошибка связи с сервером: ' + (err?.message || 'неизвестно'));
+    }
     return false;
   }
 
   async function boot(){
     if (await cookiesFirst()) return;
-    await authViaTelegram(); // если не вышло — останемся на гейте с ссылкой в бота
+    await authViaTelegram();
   }
 
   if (document.readyState==='loading') document.addEventListener('DOMContentLoaded', boot);

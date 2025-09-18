@@ -1,10 +1,12 @@
 from flask import Blueprint, render_template, request, jsonify, current_app, session
-from sqlalchemy import desc
+from sqlalchemy import desc, or_
+from collections import defaultdict
+from decimal import Decimal, ROUND_HALF_UP
 from functools import wraps
 from ..db import db
 from ..models import User, Product, Service, Order, OrderItem, Review, Feedback
-from ..utils.telegram_webapp import verify_webapp_init_data, user_from_verified, parse_init_data
-from ..auth import create_tokens, set_auth_cookies, clear_auth_cookies, jwt_required
+from ..utils.telegram_webapp import verify_webapp_init_data, user_from_verified
+from ..auth import create_tokens, set_auth_cookies, jwt_required
 
 
 bp = Blueprint("webapp", __name__)
@@ -137,40 +139,184 @@ def api_telegram_register():
 @bp.get("/catalog")
 @jwt_required
 def catalog():
-    # request.user уже установлен декоратором
-    products = Product.query.filter_by(is_active=True).all()
-    services = Service.query.filter_by(is_active=True).all()
-    return render_template("catalog.html", products=products, services=services)
+    user = request.user
+    products = Product.query.filter_by(is_active=True).order_by(Product.name).all()
+    services = Service.query.filter_by(is_active=True).order_by(Service.name).all()
+
+    visible_reviews = Review.query.filter(
+        or_(Review.is_moderated.is_(True), Review.user_id == user.id)
+    ).order_by(desc(Review.created_at)).all()
+
+    reviews_map = {"product": defaultdict(list), "service": defaultdict(list)}
+    for rv in visible_reviews:
+        bucket = reviews_map.get(rv.target_type)
+        if bucket is not None:
+            bucket[rv.target_id].append(rv)
+
+    review_stats = {"product": {}, "service": {}}
+    for rtype, bucket in reviews_map.items():
+        for target_id, items in bucket.items():
+            avg = sum(item.rating for item in items) / max(len(items), 1)
+            review_stats[rtype][target_id] = {
+                "items": items,
+                "average": avg,
+                "count": len(items),
+            }
+
+    return render_template(
+        "catalog.html",
+        products=products,
+        services=services,
+        review_stats=review_stats,
+        user=user,
+        is_admin=(getattr(user, "role", "client") == "admin"),
+        nav_active="catalog",
+    )
 
 @bp.get("/orders")
 @jwt_required
 def orders():
-    u = request.user
-    orders = Order.query.filter_by(user_id=u.id).order_by(desc(Order.created_at)).all()
-    items_map = {o.id: OrderItem.query.filter_by(order_id=o.id).all() for o in orders}
-    return render_template("orders.html", orders=orders, items_map=items_map)
+    user = request.user
+    orders = (
+        Order.query.filter_by(user_id=user.id)
+        .order_by(desc(Order.created_at))
+        .all()
+    )
+
+    order_ids = [o.id for o in orders]
+    raw_items = (
+        OrderItem.query.filter(OrderItem.order_id.in_(order_ids)).all()
+        if order_ids
+        else []
+    )
+
+    product_ids = {it.item_id for it in raw_items if it.item_type == "product"}
+    service_ids = {it.item_id for it in raw_items if it.item_type == "service"}
+    products = (
+        {p.id: p for p in Product.query.filter(Product.id.in_(product_ids))}
+        if product_ids
+        else {}
+    )
+    services = (
+        {s.id: s for s in Service.query.filter(Service.id.in_(service_ids))}
+        if service_ids
+        else {}
+    )
+
+    items_map = defaultdict(list)
+    for it in raw_items:
+        info = {
+            "type": it.item_type,
+            "qty": it.qty,
+            "unit_price": it.unit_price,
+            "total": it.total,
+        }
+        if it.item_type == "product":
+            prod = products.get(it.item_id)
+            if prod:
+                info["name"] = prod.name
+                info["unit"] = prod.unit
+        elif it.item_type == "service":
+            srv = services.get(it.item_id)
+            if srv:
+                info["name"] = srv.name
+                info["unit"] = "услуга"
+        items_map[it.order_id].append(info)
+
+    items_map = dict(items_map)
+
+    return render_template(
+        "orders.html",
+        orders=orders,
+        items_map=items_map,
+        user=user,
+        is_admin=(getattr(user, "role", "client") == "admin"),
+        nav_active="orders",
+    )
 
 @bp.post("/order")
 @jwt_required
 def create_order():
     payload = request.get_json(force=True)
-    items = payload.get("items", [])
-    order = Order(user_id=request.user.id, status="new", total=0)
-    db.session.add(order); db.session.flush()
-    total = 0
+    items = payload.get("items") or []
+    comment = (payload.get("comment") or "").strip()
+    delivery_price = payload.get("delivery_price")
+
+    if not items:
+        return jsonify({"ok": False, "error": "empty_order"}), 400
+
+    def to_decimal(value) -> Decimal:
+        return Decimal(str(value)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+    order = Order(
+        user_id=request.user.id,
+        status="new",
+        comment=comment or None,
+        delivery_price=to_decimal(delivery_price or 0),
+        total=Decimal("0.00"),
+    )
+    db.session.add(order)
+    db.session.flush()
+
+    total = Decimal("0.00")
+    added = 0
     for it in items:
-        qty = float(it.get("qty", 1))
-        price = float(it.get("price", 0))
-        oi = OrderItem(order_id=order.id, item_type=it["type"], item_id=it["id"],
-                       qty=qty, unit_price=price, total=qty*price)
-        total += oi.total; db.session.add(oi)
-    order.total = total; db.session.commit()
-    return jsonify({"ok": True, "order_id": order.id, "total": float(total)})
+        item_type = it.get("type")
+        item_id = int(it.get("id", 0))
+        qty_raw = it.get("qty", 1)
+        try:
+            qty = Decimal(str(qty_raw))
+        except Exception:
+            return jsonify({"ok": False, "error": "invalid_qty"}), 400
+        if qty <= 0:
+            return jsonify({"ok": False, "error": "invalid_qty"}), 400
+
+        if item_type == "product":
+            obj = Product.query.get(item_id)
+            if not obj or not obj.is_active:
+                return jsonify({"ok": False, "error": "unknown_product"}), 400
+            unit_price = to_decimal(obj.price)
+        elif item_type == "service":
+            obj = Service.query.get(item_id)
+            if not obj or not obj.is_active:
+                return jsonify({"ok": False, "error": "unknown_service"}), 400
+            unit_price = to_decimal(obj.base_price)
+        else:
+            return jsonify({"ok": False, "error": "invalid_type"}), 400
+
+        line_total = (unit_price * qty).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        db.session.add(
+            OrderItem(
+                order_id=order.id,
+                item_type=item_type,
+                item_id=item_id,
+                qty=qty,
+                unit_price=unit_price,
+                total=line_total,
+            )
+        )
+        added += 1
+        total += line_total
+
+    if not added:
+        return jsonify({"ok": False, "error": "empty_order"}), 400
+
+    order.total = (total + (order.delivery_price or Decimal("0.00"))).quantize(
+        Decimal("0.01"), rounding=ROUND_HALF_UP
+    )
+    db.session.commit()
+    return jsonify({"ok": True, "order_id": order.id, "total": float(order.total)})
 
 @bp.get("/profile")
 @jwt_required
 def profile_get():
-    return render_template("profile.html", user=request.user)
+    user = request.user
+    return render_template(
+        "profile.html",
+        user=user,
+        is_admin=(getattr(user, "role", "client") == "admin"),
+        nav_active="profile",
+    )
 
 @bp.post("/profile")
 @jwt_required
@@ -184,7 +330,14 @@ def profile_post():
     if phone and len(phone) < 6:   return jsonify({"ok": False, "error":"Некорректный телефон"}), 400
     u.email = email or None; u.phone = phone or None; u.delivery_address = addr or None
     db.session.commit()
-    return jsonify({"ok": True})
+    return jsonify({
+        "ok": True,
+        "user": {
+            "email": u.email,
+            "phone": u.phone,
+            "delivery_address": u.delivery_address,
+        },
+    })
 
 @bp.post("/reviews")
 @jwt_required
@@ -205,7 +358,13 @@ def reviews_post():
 @bp.get("/feedback")
 @jwt_required
 def feedback_get():
-    return render_template("feedback.html")
+    user = request.user
+    return render_template(
+        "feedback.html",
+        user=user,
+        is_admin=(getattr(user, "role", "client") == "admin"),
+        nav_active="feedback",
+    )
 
 @bp.post("/feedback")
 @jwt_required
@@ -215,13 +374,15 @@ def feedback_post():
     message = (data.get("message") or "").strip()
     if not name or not message:
         return jsonify({"ok": False, "error":"Заполните имя и сообщение"}), 400
-    fb = Feedback(user_id=request.user.id,  # <<< тут была session.get("uid")
-                  name=name,
-                  phone=(data.get("phone") or None),
-                  email=(data.get("email") or None),
-                  subject=(data.get("subject") or None),
-                  message=message,
-                  status="new")
+    fb = Feedback(
+        user_id=request.user.id,
+        name=name,
+        phone=(data.get("phone") or "").strip() or None,
+        email=(data.get("email") or "").strip() or None,
+        subject=(data.get("subject") or "").strip() or None,
+        message=message,
+        status="new",
+    )
     db.session.add(fb); db.session.commit()
     return jsonify({"ok": True})
 
